@@ -95,8 +95,24 @@ Revisit **Tauri** later if we want a polished tray app with an "IP setup" button
 - **P5 (later) — polish:** code-signing, "Set up network" button, Tauri tray app,
   auto-update.
 
-## Open decisions (needed before building)
+## Decisions (LOCKED 2026-09-11)
 
-1. **Name** (single word) → subdomain + app + bridge.
-2. **Packaging tool**: Bun compile (rec.) vs pkg vs Tauri.
-3. Bridge distribution: GitHub Releases (rec.) vs hosting binaries elsewhere.
+- **Name: `Kerf`** → `kerf.sankhacooray.com`; app title "Kerf"; rename repo/folder
+  `flatbed-cutter-control` → `kerf` when we execute.
+- **Packaging: Tauri** tray app (chosen over Bun/pkg for a polished result). Implies:
+  - A small Rust/Tauri shell with a **tray icon** and a webview that loads `app/`.
+  - The TCP send + local HTTP can move into Tauri's Rust side (a Rust `TcpStream`
+    replaces `server.mjs`'s socket forwarding), OR keep `server.mjs` as a bundled
+    Node **sidecar** — decide at build time. Rust-native is cleaner (no Node dep).
+  - Room for a **"Set up network"** menu item (runs the static-IP command with
+    elevation) and **auto-update**.
+  - Cost: Rust toolchain + more build setup; unsigned-app warnings still apply
+    until we sign (Apple Developer / Windows cert).
+- **Distribution:** bridge app via **GitHub Releases**; download links on the
+  hosted subdomain.
+
+## STATUS: ON HOLD (plan only)
+
+Not building yet — this document is the agreed plan. When resumed, start at P1
+(the Tauri bridge) unless decided otherwise. The current working system (local
+`node server.mjs` bridge + app) remains fully functional in the meantime.
