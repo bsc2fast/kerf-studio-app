@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cutter Studio — flatbed-cutter-control</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Cutter Studio</h1>
+    <span class="sub">SVG → <code>.plt</code> (HPGL) · flash drive today, direct send later</span>
+  </header>
+
+  <main class="grid">
+    <!-- LEFT: input + controls -->
+    <section class="panel">
+      <h2>1 · Artwork</h2>
+      <div id="dropzone" class="dropzone">
+        <p>Drop a <strong>PDF</strong> or <strong>SVG</strong> here, or</p>
+        <label class="btn">Choose file<input id="fileInput" type="file" accept=".pdf,.svg,image/svg+xml,application/pdf" hidden /></label>
+        <button id="loadSample" class="btn ghost" type="button">Load sample</button>
+        <p class="hint">PDF: only the <code>Cut</code> spot-colour lines are used (like SignMaster).</p>
+      </div>
+
+      <div id="contours" class="contours" hidden>
+        <h2>Cut contours <button id="allBtn" class="btn ghost tiny" type="button">toggle all</button></h2>
+        <div id="contourList" class="contour-list"></div>
+      </div>
+
+      <h2>2 · Settings</h2>
+      <div class="controls">
+        <label title="How many SVG user units equal 1 mm. Illustrator SVG is usually 96dpi px (3.7795); PDF points would be 2.8346.">
+          SVG units per mm
+          <input id="userUnitsPerMm" type="number" step="0.0001" value="3.7795" />
+        </label>
+        <label title="Point spacing when sampling curves. Smaller = smoother, bigger file.">
+          Sample step (mm)
+          <input id="sampleStepMm" type="number" step="0.05" value="0.3" />
+        </label>
+        <label title="Rotate the design. Auto picks 0° or 90° to fit the bed (matches SignMaster's portrait→landscape).">
+          Rotate
+          <select id="rotate">
+            <option value="auto">Auto (fit bed)</option>
+            <option value="0">0°</option>
+            <option value="90">90°</option>
+            <option value="180">180°</option>
+            <option value="270">270°</option>
+          </select>
+        </label>
+        <label title="Where to place the art. Center = matches the captured files (design centred on bed).">
+          Placement
+          <select id="place">
+            <option value="center">Center on bed</option>
+            <option value="origin">Bottom-left origin</option>
+          </select>
+        </label>
+        <label class="check" title="Flip Y so origin is bottom-left (this machine's convention).">
+          <input id="flipY" type="checkbox" checked /> Flip Y (origin bottom-left)
+        </label>
+      </div>
+
+      <h2>2b · Machine <span class="tag ok-tag">confirmed from captures</span></h2>
+      <div class="controls">
+        <label title="Plotter units per mm. Confirmed = 40 (1/40 mm) from the captured files.">
+          Plotter units per mm
+          <input id="unitsPerMm" type="number" step="1" value="40" />
+        </label>
+        <label title="Bed width in plotter units (11080 = 277 mm).">
+          Bed width (units)
+          <input id="bedWunits" type="number" step="1" value="11080" />
+        </label>
+        <label title="Bed height in plotter units (7600 = 190 mm).">
+          Bed height (units)
+          <input id="bedHunits" type="number" step="1" value="7600" />
+        </label>
+        <label title="Cut tool number (CT command).">
+          Cut tool (CT#)
+          <input id="tool" type="number" step="1" value="1" />
+        </label>
+      </div>
+
+      <h2>3 · Send to machine <span class="tag ok-tag">LAN</span></h2>
+      <div class="controls">
+        <label title="The machine's IP (from its Network screen).">
+          Machine IP
+          <input id="ip" type="text" value="192.168.1.20" />
+        </label>
+        <label title="TCP port the machine listens on for plot data.">
+          Port
+          <input id="port" type="number" step="1" value="5000" />
+        </label>
+        <div class="row">
+          <button id="pingBtn" class="btn" type="button">Test connection</button>
+          <button id="penupBtn" class="btn" type="button">Safe pen-up test</button>
+        </div>
+        <div class="row">
+          <button id="sendLanBtn" class="btn primary" type="button" disabled>Send cut to machine</button>
+        </div>
+        <pre id="lanLog" class="serial-log" hidden></pre>
+        <p class="hint">Machine must be on its <strong>main/ready screen</strong> (the plot port only opens there). Blade up / no material for tests. Needs the Node bridge: <code>node server.mjs</code>.</p>
+      </div>
+    </section>
+
+    <!-- RIGHT: preview + output -->
+    <section class="panel">
+      <h2>Preview <span class="legend"><i class="cut"></i> cut &nbsp; <i class="travel"></i> travel</span></h2>
+      <canvas id="preview" width="720" height="460"></canvas>
+      <div id="stats" class="stats"></div>
+
+      <div class="row space">
+        <h2>HPGL output</h2>
+        <div class="row">
+          <button id="saveStickBtn" class="btn primary" type="button" disabled>Save to USB stick</button>
+          <button id="exportBtn" class="btn" type="button" disabled>Export .plt</button>
+        </div>
+      </div>
+      <p id="stickNote" class="hint"></p>
+      <textarea id="pltOut" class="plt" spellcheck="false" readonly placeholder="The .plt command stream will appear here."></textarea>
+    </section>
+  </main>
+
+  <div id="status" class="status">Loading…</div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

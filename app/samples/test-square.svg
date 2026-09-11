@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sample calibration artwork. Authored so 1 SVG user unit = 1 mm.
+     To see true millimetre sizes, set "SVG units per mm" = 1 in the app.
+     Contains: a 40mm square, a circle, and a two-subpath <path> to prove that
+     separate shapes don't get joined by a stray cut line. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="70mm" viewBox="0 0 100 70">
+  <rect x="10" y="10" width="40" height="40" fill="none" stroke="#000" stroke-width="0.2"/>
+  <circle cx="78" cy="24" r="14" fill="none" stroke="#000" stroke-width="0.2"/>
+  <!-- two triangles in one path (M ... Z M ... Z) -> two separate polylines -->
+  <path d="M62 44 L74 44 L68 56 Z M80 44 L92 44 L86 56 Z" fill="none" stroke="#000" stroke-width="0.2"/>
+</svg>
