@@ -1,3 +1,20 @@
+# captures (large sample PDFs)
 captures/*
 !captures/.gitkeep
+
+# macOS
 .DS_Store
+
+# node
+node_modules/
+
+# rust / tauri build output
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+
+# cloudflare / wrangler
+.wrangler/
+web/.wrangler/
+
+# generated tauri icons are committed only if you choose; ignore by default
+# desktop/src-tauri/icons/

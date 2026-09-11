@@ -1,0 +1,13 @@
+{
+  "name": "kerf-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kerf hosted web app (Cloudflare Worker serving ../app)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

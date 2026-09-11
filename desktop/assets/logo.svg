@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="220" fill="#0f1216"/>
+  <!-- blade cut mark -->
+  <path d="M300 300 L724 724" stroke="#e5484d" stroke-width="70" stroke-linecap="round"/>
+  <path d="M724 300 L300 724" stroke="#3b82f6" stroke-width="70" stroke-linecap="round"/>
+  <circle cx="512" cy="512" r="70" fill="#0f1216" stroke="#e6ebf2" stroke-width="26"/>
+</svg>

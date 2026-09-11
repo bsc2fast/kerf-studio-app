@@ -2,6 +2,7 @@
 import { svgToPolylines, rotateAndNormalize, boundsOf } from './lib/svg-parse.js';
 import { extractCutPolylines } from './lib/pdf-cut.js';
 import { polylinesToHPGL, hpglStats, MACHINE_DEFAULTS } from './lib/hpgl.js';
+import { detectBackend, pingMachine, sendPlt } from './lib/transport.js';
 
 const $ = (id) => document.getElementById(id);
 const PALETTE = ['#e5484d', '#3b82f6', '#12a594', '#f5a524', '#8e4ec6', '#e93d82', '#46a758', '#d6409f'];
@@ -220,39 +221,44 @@ $('saveStickBtn').addEventListener('click', async (e) => {
   }
 });
 
-// ---- Send to machine over LAN (via the local Node bridge) -----------------
-const lanTarget = () => `ip=${encodeURIComponent($('ip').value.trim())}&port=${encodeURIComponent($('port').value.trim())}`;
+// ---- Send to machine (transport-agnostic: Tauri / Node bridge / hosted) ----
+const ipv = () => $('ip').value.trim();
+const portv = () => $('port').value.trim();
 const lanLog = (msg) => { const el = $('lanLog'); el.hidden = false; el.textContent = msg; };
 const PENUP = () => `TB25,11080,7600;CT1;${' '.repeat(1025)}IN;PU5540,3800;PU1500,1500;PU5540,3800;PU11280,200;PG;`;
 
-async function lanPost(plt) {
-  const res = await fetch(`/api/send?${lanTarget()}`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: plt });
-  const j = await res.json();
-  if (!j.ok) throw new Error(j.error || 'send failed');
-  return j;
-}
-
 $('pingBtn').addEventListener('click', async () => {
-  lanLog(`Testing ${$('ip').value}:${$('port').value}…`);
+  lanLog(`Testing ${ipv()}:${portv()}…`);
   try {
-    const res = await fetch(`/api/ping?${lanTarget()}`);
-    const j = await res.json();
-    if (j.ok) { lanLog(`✅ Reached ${j.ip}:${j.port} in ${j.ms} ms. Machine is ready to receive.`); setStatus('Machine reachable — ready to send.', 'ok'); }
-    else { lanLog(`❌ ${j.ip}:${j.port} — ${j.error}\nMake sure the machine is on its main/ready screen (the plot port only opens there).`); setStatus('Port not open — check the machine is on its ready screen.', 'warn'); }
-  } catch (err) { lanLog('Bridge error: ' + err.message + '\nIs the Node bridge running? (node server.mjs)'); setStatus('Bridge not reachable.', 'err'); }
+    const ms = await pingMachine(ipv(), portv());
+    lanLog(`✅ Reached ${ipv()}:${portv()} in ${ms} ms. Machine is ready to receive.`); setStatus('Machine reachable — ready to send.', 'ok');
+  } catch (err) { lanLog(`❌ ${ipv()}:${portv()} — ${err.message}\nMake sure the machine is on its main/ready screen (the plot port only opens there).`); setStatus('Not reachable — check the machine is on its ready screen.', 'warn'); }
 });
 
 $('penupBtn').addEventListener('click', async () => {
   lanLog('Sending safe pen-up test (0 cuts)…');
-  try { const j = await lanPost(PENUP()); lanLog(`✅ Sent ${j.bytes} bytes to ${j.ip}:${j.port} (pen-up only). Watch the head — did it move?`); setStatus('Pen-up test sent.', 'ok'); }
+  try { const j = await sendPlt(ipv(), portv(), PENUP()); lanLog(`✅ Sent ${j.bytes} bytes to ${ipv()}:${portv()} (pen-up only). Watch the head — did it move?`); setStatus('Pen-up test sent.', 'ok'); }
   catch (err) { lanLog('❌ ' + err.message + '\nMachine must be on its main/ready screen.'); setStatus('Send failed: ' + err.message, 'err'); }
 });
 
 $('sendLanBtn').addEventListener('click', async () => {
   if (!state.plt) return;
-  lanLog(`Sending cut (${state.plt.length} bytes) to ${$('ip').value}:${$('port').value}…`);
-  try { const j = await lanPost(state.plt); lanLog(`✅ Cut sent — ${j.bytes} bytes to ${j.ip}:${j.port}.`); setStatus('Cut sent to the machine!', 'ok'); }
+  lanLog(`Sending cut (${state.plt.length} bytes) to ${ipv()}:${portv()}…`);
+  try { const j = await sendPlt(ipv(), portv(), state.plt); lanLog(`✅ Cut sent — ${j.bytes} bytes to ${ipv()}:${portv()}.`); setStatus('Cut sent to the machine!', 'ok'); }
   catch (err) { lanLog('❌ ' + err.message + '\nMachine must be on its main/ready screen.'); setStatus('Send failed: ' + err.message, 'err'); }
+});
+
+// Adapt UI to the edition: hosted web has no machine link → show a download note.
+detectBackend().then((mode) => {
+  const panel = document.getElementById('lanPanel');
+  const tag = document.getElementById('lanTag');
+  if (mode === 'web') {
+    if (panel) panel.hidden = true;
+    const note = document.getElementById('webSendNote');
+    if (note) note.hidden = false;
+  } else {
+    if (tag) tag.textContent = mode === 'tauri' ? 'Kerf app' : 'LAN';
+  }
 });
 
 // Restore the saved USB-stick folder handle on load (permission re-checked lazily).

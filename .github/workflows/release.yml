@@ -1,0 +1,57 @@
+name: Release Kerf desktop
+
+# Build the Kerf desktop app for macOS + Windows and attach installers to a
+# GitHub Release. Trigger by pushing a tag like `v0.1.0`, or run manually.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest      # Apple Silicon
+            args: '--target aarch64-apple-darwin'
+          - platform: macos-latest      # Intel
+            args: '--target x86_64-apple-darwin'
+          - platform: windows-latest
+            args: ''
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ contains(matrix.args, 'aarch64') && 'aarch64-apple-darwin' || contains(matrix.args, 'x86_64') && 'x86_64-apple-darwin' || '' }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install desktop deps
+        working-directory: desktop
+        run: npm install
+
+      - name: Generate icons (from assets/logo.png)
+        working-directory: desktop
+        run: npm run icon || echo "icons already present or logo missing — ensure desktop/src-tauri/icons exist"
+
+      - name: Build + release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Kerf ${{ github.ref_name }}'
+          releaseBody: 'Kerf desktop app. macOS: right-click → Open on first run. Windows: More info → Run anyway.'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

@@ -60,6 +60,7 @@ const server = http.createServer(async (req, res) => {
   const port = parseInt(url.searchParams.get('port'), 10) || DEFAULT_TCP;
 
   // --- API ---
+  if (url.pathname === '/api/health') { json(res, 200, { bridge: true, edition: 'node' }); return; }
   if (url.pathname === '/api/ping') {
     try { const ms = await tcpPing(ip, port); json(res, 200, { ok: true, ip, port, ms: Math.round(ms * 100) / 100 }); }
     catch (e) { json(res, 502, { ok: false, ip, port, error: e.message }); }

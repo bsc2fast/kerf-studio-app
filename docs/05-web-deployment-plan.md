@@ -111,8 +111,17 @@ Revisit **Tauri** later if we want a polished tray app with an "IP setup" button
 - **Distribution:** bridge app via **GitHub Releases**; download links on the
   hosted subdomain.
 
-## STATUS: ON HOLD (plan only)
+## STATUS: P1 + web SCAFFOLDED (2026-09-11) — see docs/06
 
-Not building yet — this document is the agreed plan. When resumed, start at P1
-(the Tauri bridge) unless decided otherwise. The current working system (local
-`node server.mjs` bridge + app) remains fully functional in the meantime.
+Done in code (one command from working):
+- **Transport shim** `app/lib/transport.js` — same app runs as Tauri / Node bridge /
+  hosted web; auto-detects and shows the right send option. Bridge adds `/api/health`.
+- **Kerf desktop (Tauri)** in `desktop/` — Rust `ping_machine`/`send_plt`, tray icon,
+  loads `../app`. Needs: Rust install + icon generation to build (see docs/06).
+- **Cloudflare Worker** in `web/` — serves `../app`; validated with `wrangler --dry-run`.
+  Needs: `wrangler login` + confirming the DNS zone for the custom domain.
+- **CI** `.github/workflows/release.yml` — builds macOS + Windows installers on tag.
+
+Remaining (needs user creds/tooling): Cloudflare login + DNS zone check; Rust
+install + icons + optional code-signing. The local `node server.mjs` bridge + app
+remain fully functional now.
