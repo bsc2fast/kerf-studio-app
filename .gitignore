@@ -16,5 +16,10 @@ desktop/src-tauri/gen/
 .wrangler/
 web/.wrangler/
 
+# downloadable binaries — served by the Worker from app/downloads/, but kept out
+# of git (uploaded to Cloudflare at deploy time from the build machine)
+app/downloads/*
+!app/downloads/README.md
+
 # generated tauri icons are committed only if you choose; ignore by default
 # desktop/src-tauri/icons/

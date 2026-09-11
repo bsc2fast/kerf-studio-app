@@ -252,12 +252,15 @@ $('sendLanBtn').addEventListener('click', async () => {
 detectBackend().then((mode) => {
   const panel = document.getElementById('lanPanel');
   const tag = document.getElementById('lanTag');
+  const bar = document.getElementById('downloadBar');
   if (mode === 'web') {
     if (panel) panel.hidden = true;
     const note = document.getElementById('webSendNote');
     if (note) note.hidden = false;
+    if (bar) bar.hidden = false;            // show the download banner to web visitors
   } else {
     if (tag) tag.textContent = mode === 'tauri' ? 'Kerf app' : 'LAN';
+    if (bar) bar.hidden = true;             // already have the app / bridge
   }
 });
 
