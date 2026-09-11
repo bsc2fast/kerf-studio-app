@@ -11,13 +11,10 @@
   "assets": {
     "directory": "../app",
     "binding": "ASSETS"
-  }
+  },
 
-  // ---- Custom domain (uncomment once sankhacooray.com's zone is on Cloudflare) ----
-  // "routes": [
-  //   { "pattern": "kerf.sankhacooray.com", "custom_domain": true }
-  // ]
-  // If the zone is NOT on Cloudflare, this Worker still deploys to
-  // https://kerf.<your-subdomain>.workers.dev — usable immediately, and you can
-  // point kerf.sankhacooray.com at it later.
+  // Custom domain (sankhacooray.com zone is on Cloudflare).
+  "routes": [
+    { "pattern": "kerf.sankhacooray.com", "custom_domain": true }
+  ]
 }
