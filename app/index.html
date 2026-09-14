@@ -10,8 +10,12 @@
   <header class="topbar">
     <div class="brand">
       <h1>Kerf</h1>
-      <span class="sub">PDF/SVG → <code>.plt</code> · cut over the network, or save to USB</span>
     </div>
+    <nav class="nav">
+      <a href="#studio" data-view="studio">Studio</a>
+      <a href="#config" data-view="config">Machine</a>
+      <a href="#get" data-view="get">Get app</a>
+    </nav>
     <div id="connWidget" class="conn" title="Machine connection">
       <svg class="dev-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect x="3" y="4" width="18" height="12" rx="1.5"/>
@@ -24,123 +28,168 @@
     </div>
   </header>
 
-  <div id="downloadBar" class="downloadbar" hidden>
-    <div>
-      <strong>Get Kerf for desktop</strong> — cut straight to the machine over the network.
-      <span class="hint">Unsigned: on macOS, right-click → Open the first time.</span>
-    </div>
-    <div class="dlbtns">
-      <a class="btn primary" href="./downloads/Kerf-macOS-AppleSilicon.dmg" download>macOS (Apple Silicon)</a>
-      <span class="hint">Intel Mac &amp; Windows: coming soon</span>
-    </div>
-  </div>
+  <main>
+    <!-- ============================ STUDIO ============================ -->
+    <section id="view-studio" class="view">
+      <div class="grid">
+        <section class="panel">
+          <h2>1 · Artwork</h2>
+          <div id="dropzone" class="dropzone">
+            <p>Drop a <strong>PDF</strong> or <strong>SVG</strong> here, or</p>
+            <label class="btn">Choose file<input id="fileInput" type="file" accept=".pdf,.svg,image/svg+xml,application/pdf" hidden /></label>
+            <button id="loadSample" class="btn ghost" type="button">Load sample</button>
+            <p class="hint">PDF: only the <code>Cut</code> spot-colour lines are used.</p>
+          </div>
 
-  <main class="grid">
-    <!-- LEFT: input + controls -->
-    <section class="panel">
-      <h2>1 · Artwork</h2>
-      <div id="dropzone" class="dropzone">
-        <p>Drop a <strong>PDF</strong> or <strong>SVG</strong> here, or</p>
-        <label class="btn">Choose file<input id="fileInput" type="file" accept=".pdf,.svg,image/svg+xml,application/pdf" hidden /></label>
-        <button id="loadSample" class="btn ghost" type="button">Load sample</button>
-        <p class="hint">PDF: only the <code>Cut</code> spot-colour lines are used (like SignMaster).</p>
-      </div>
+          <div id="contours" class="contours" hidden>
+            <h2>Cut contours <button id="allBtn" class="btn ghost tiny" type="button">toggle all</button></h2>
+            <div id="contourList" class="contour-list"></div>
+          </div>
 
-      <div id="contours" class="contours" hidden>
-        <h2>Cut contours <button id="allBtn" class="btn ghost tiny" type="button">toggle all</button></h2>
-        <div id="contourList" class="contour-list"></div>
-      </div>
+          <h2>2 · Layout</h2>
+          <div class="controls">
+            <label title="How many SVG user units equal 1 mm. Illustrator SVG is usually 96dpi px (3.7795).">
+              SVG units per mm
+              <input id="userUnitsPerMm" type="number" step="0.0001" value="3.7795" />
+            </label>
+            <label title="Point spacing when sampling curves.">
+              Sample step (mm)
+              <input id="sampleStepMm" type="number" step="0.05" value="0.3" />
+            </label>
+            <label title="Rotate the design. Auto picks 0/90 to fit the bed.">
+              Rotate
+              <select id="rotate">
+                <option value="auto">Auto (fit bed)</option>
+                <option value="0">0°</option><option value="90">90°</option>
+                <option value="180">180°</option><option value="270">270°</option>
+              </select>
+            </label>
+            <label title="Where to place the art. 'At origin' uses the origin set on the Machine page.">
+              Placement
+              <select id="place">
+                <option value="center">Center on bed</option>
+                <option value="origin">At origin (Machine page)</option>
+              </select>
+            </label>
+            <label class="check" title="Flip Y so origin is bottom-left (this machine's convention).">
+              <input id="flipY" type="checkbox" checked /> Flip Y (origin bottom-left)
+            </label>
+          </div>
 
-      <h2>2 · Settings</h2>
-      <div class="controls">
-        <label title="How many SVG user units equal 1 mm. Illustrator SVG is usually 96dpi px (3.7795); PDF points would be 2.8346.">
-          SVG units per mm
-          <input id="userUnitsPerMm" type="number" step="0.0001" value="3.7795" />
-        </label>
-        <label title="Point spacing when sampling curves. Smaller = smoother, bigger file.">
-          Sample step (mm)
-          <input id="sampleStepMm" type="number" step="0.05" value="0.3" />
-        </label>
-        <label title="Rotate the design. Auto picks 0° or 90° to fit the bed (matches SignMaster's portrait→landscape).">
-          Rotate
-          <select id="rotate">
-            <option value="auto">Auto (fit bed)</option>
-            <option value="0">0°</option>
-            <option value="90">90°</option>
-            <option value="180">180°</option>
-            <option value="270">270°</option>
-          </select>
-        </label>
-        <label title="Where to place the art. Center = matches the captured files (design centred on bed).">
-          Placement
-          <select id="place">
-            <option value="center">Center on bed</option>
-            <option value="origin">Bottom-left origin</option>
-          </select>
-        </label>
-        <label class="check" title="Flip Y so origin is bottom-left (this machine's convention).">
-          <input id="flipY" type="checkbox" checked /> Flip Y (origin bottom-left)
-        </label>
-      </div>
+          <h2>3 · Send <span id="lanTag" class="tag ok-tag">LAN</span></h2>
+          <p id="webSendNote" class="hint" hidden>Direct send needs the <strong>Kerf</strong> desktop app. Here you can Export the <code>.plt</code> or Save to USB stick — or <a href="#get">get the app</a> to cut over the network.</p>
+          <div class="controls" id="lanPanel">
+            <div class="row">
+              <button id="pingBtn" class="btn" type="button">Test connection</button>
+              <button id="penupBtn" class="btn" type="button">Safe pen-up test</button>
+            </div>
+            <div class="row">
+              <button id="sendLanBtn" class="btn primary" type="button" disabled>Send cut to machine</button>
+            </div>
+            <pre id="lanLog" class="serial-log" hidden></pre>
+            <p class="hint">Machine must be on its <strong>main/ready screen</strong>. Set IP &amp; origin on the <a href="#config">Machine page</a>.</p>
+          </div>
+        </section>
 
-      <h2>2b · Machine <span class="tag ok-tag">confirmed from captures</span></h2>
-      <div class="controls">
-        <label title="Plotter units per mm. Confirmed = 40 (1/40 mm) from the captured files.">
-          Plotter units per mm
-          <input id="unitsPerMm" type="number" step="1" value="40" />
-        </label>
-        <label title="Bed width in plotter units (11080 = 277 mm).">
-          Bed width (units)
-          <input id="bedWunits" type="number" step="1" value="11080" />
-        </label>
-        <label title="Bed height in plotter units (7600 = 190 mm).">
-          Bed height (units)
-          <input id="bedHunits" type="number" step="1" value="7600" />
-        </label>
-        <label title="Cut tool number (CT command).">
-          Cut tool (CT#)
-          <input id="tool" type="number" step="1" value="1" />
-        </label>
-      </div>
+        <section class="panel">
+          <h2>Preview <span class="legend"><i class="cut"></i> cut &nbsp; <i class="travel"></i> travel</span></h2>
+          <canvas id="preview" width="720" height="460"></canvas>
+          <div id="stats" class="stats"></div>
 
-      <h2>3 · Send to machine <span id="lanTag" class="tag ok-tag">LAN</span></h2>
-      <p id="webSendNote" class="hint" hidden>Direct send needs the <strong>Kerf</strong> desktop app (a browser can't reach the cutter). Here you can Export the <code>.plt</code> or Save to USB stick; run the Kerf app to cut over the network.</p>
-      <div class="controls" id="lanPanel">
-        <label title="The machine's IP (from its Network screen).">
-          Machine IP
-          <input id="ip" type="text" value="192.168.1.20" />
-        </label>
-        <label title="TCP port the machine listens on for plot data.">
-          Port
-          <input id="port" type="number" step="1" value="5000" />
-        </label>
-        <div class="row">
-          <button id="pingBtn" class="btn" type="button">Test connection</button>
-          <button id="penupBtn" class="btn" type="button">Safe pen-up test</button>
-        </div>
-        <div class="row">
-          <button id="sendLanBtn" class="btn primary" type="button" disabled>Send cut to machine</button>
-        </div>
-        <pre id="lanLog" class="serial-log" hidden></pre>
-        <p class="hint">Machine must be on its <strong>main/ready screen</strong> (the plot port only opens there). Blade up / no material for tests. Needs the Node bridge: <code>node server.mjs</code>.</p>
+          <div class="row space">
+            <h2>HPGL output</h2>
+            <div class="row">
+              <button id="saveStickBtn" class="btn primary" type="button" disabled>Save to USB stick</button>
+              <button id="exportBtn" class="btn" type="button" disabled>Export .plt</button>
+            </div>
+          </div>
+          <p id="stickNote" class="hint"></p>
+          <textarea id="pltOut" class="plt" spellcheck="false" readonly placeholder="The .plt command stream will appear here."></textarea>
+        </section>
       </div>
     </section>
 
-    <!-- RIGHT: preview + output -->
-    <section class="panel">
-      <h2>Preview <span class="legend"><i class="cut"></i> cut &nbsp; <i class="travel"></i> travel</span></h2>
-      <canvas id="preview" width="720" height="460"></canvas>
-      <div id="stats" class="stats"></div>
+    <!-- ============================ MACHINE (config) ============================ -->
+    <section id="view-config" class="view" hidden>
+      <div class="config-wrap">
+        <section class="panel">
+          <h2>Connection</h2>
+          <div class="controls">
+            <label title="The machine's IP (from its on-screen Network settings).">
+              Machine IP <input id="cfgIp" type="text" value="192.168.1.20" />
+            </label>
+            <label title="TCP port the machine listens on for plot data.">
+              Port <input id="cfgPort" type="number" step="1" value="5000" />
+            </label>
+            <div class="row"><button id="cfgTestBtn" class="btn" type="button">Test connection</button></div>
+            <p class="hint">The plot port only opens while the machine is on its <strong>main/ready screen</strong>.</p>
+          </div>
+        </section>
 
-      <div class="row space">
-        <h2>HPGL output</h2>
-        <div class="row">
-          <button id="saveStickBtn" class="btn primary" type="button" disabled>Save to USB stick</button>
-          <button id="exportBtn" class="btn" type="button" disabled>Export .plt</button>
-        </div>
+        <section class="panel">
+          <h2>Bed &amp; scale</h2>
+          <div class="controls">
+            <label title="Plotter units per mm. Confirmed 40 for this machine.">
+              Plotter units per mm <input id="unitsPerMm" type="number" step="1" value="40" />
+            </label>
+            <label title="Bed width in plotter units (11080 = 277 mm).">
+              Bed width (units) <input id="bedWunits" type="number" step="1" value="11080" />
+            </label>
+            <label title="Bed height in plotter units (7600 = 190 mm).">
+              Bed height (units) <input id="bedHunits" type="number" step="1" value="7600" />
+            </label>
+            <label title="Cut tool number (CT command).">
+              Cut tool (CT#) <input id="cutTool" type="number" step="1" value="1" />
+            </label>
+            <p id="bedMmNote" class="hint"></p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Origin</h2>
+          <div class="controls">
+            <p class="hint">Where the head parks / where "At origin" placement anchors the design — measured in mm from the bed's bottom-left corner.</p>
+            <label>Origin X (mm) <input id="originXmm" type="number" step="0.5" value="0" /></label>
+            <label>Origin Y (mm) <input id="originYmm" type="number" step="0.5" value="0" /></label>
+            <div class="row">
+              <button id="moveOriginBtn" class="btn primary" type="button">Move head to origin</button>
+            </div>
+            <p class="hint">Blade up / no material for test moves.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Tests <span class="hint">one at a time</span></h2>
+          <div class="controls">
+            <div class="row wrap">
+              <button id="moveCenterBtn" class="btn" type="button">Move to bed center</button>
+              <button id="frameBtn" class="btn" type="button">Trace bed frame (pen-up)</button>
+              <button id="squareBtn" class="btn" type="button">20 mm square at origin (pen-up)</button>
+            </div>
+            <pre id="configLog" class="serial-log" hidden></pre>
+            <div class="row"><button id="resetBtn" class="btn ghost tiny" type="button">Reset all to defaults</button></div>
+          </div>
+        </section>
       </div>
-      <p id="stickNote" class="hint"></p>
-      <textarea id="pltOut" class="plt" spellcheck="false" readonly placeholder="The .plt command stream will appear here."></textarea>
+    </section>
+
+    <!-- ============================ GET APP ============================ -->
+    <section id="view-get" class="view" hidden>
+      <div class="get-wrap">
+        <section class="panel get-hero">
+          <h2>Get Kerf for desktop</h2>
+          <p>The desktop app cuts <strong>straight to the machine over the network</strong> — no flash drive, no browser limits. It's the same Studio you see here, plus live sending and the Machine test tools.</p>
+          <div class="dlbtns">
+            <a id="getMacBtn" class="btn primary" href="./downloads/Kerf-macOS-AppleSilicon.dmg" download>Download for macOS (Apple Silicon)</a>
+            <span class="hint">Intel Mac &amp; Windows: coming soon</span>
+          </div>
+          <ul class="get-notes">
+            <li><strong>First run:</strong> right-click the app → <em>Open</em> (it's not signed yet).</li>
+            <li><strong>Network:</strong> connect the machine's LAN port; set its IP on the Machine page.</li>
+            <li><strong>No install needed to design</strong> — this web version does PDF→.plt, preview, Export and Save-to-USB.</li>
+          </ul>
+        </section>
+      </div>
     </section>
   </main>
 

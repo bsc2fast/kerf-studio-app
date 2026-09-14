@@ -1,28 +1,30 @@
-// main.js — wires the UI together.
+// main.js — Kerf: Studio + Machine config + Get-app, one shared app.
 import { svgToPolylines, rotateAndNormalize, boundsOf } from './lib/svg-parse.js';
 import { extractCutPolylines } from './lib/pdf-cut.js';
-import { polylinesToHPGL, hpglStats, MACHINE_DEFAULTS } from './lib/hpgl.js';
+import { polylinesToHPGL, hpglStats } from './lib/hpgl.js';
 import { detectBackend, pingMachine, sendPlt } from './lib/transport.js';
+import { getSettings, saveSettings, resetSettings } from './lib/settings.js';
 
 const $ = (id) => document.getElementById(id);
 const PALETTE = ['#e5484d', '#3b82f6', '#12a594', '#f5a524', '#8e4ec6', '#e93d82', '#46a758', '#d6409f'];
+const PAD = ' '.repeat(1025);
 const state = { fileName: null, contours: [], plt: null };
+let backendMode = 'web';
 
-const controls = {
+// per-artwork controls (machine params live in Settings)
+const sc = {
   userUnitsPerMm: $('userUnitsPerMm'), sampleStepMm: $('sampleStepMm'),
   rotate: $('rotate'), place: $('place'), flipY: $('flipY'),
-  unitsPerMm: $('unitsPerMm'), bedWunits: $('bedWunits'), bedHunits: $('bedHunits'), tool: $('tool'),
 };
 
 function readOpts() {
+  const s = getSettings();
   return {
-    userUnitsPerMm: parseFloat(controls.userUnitsPerMm.value) || (96 / 25.4),
-    sampleStepMm: parseFloat(controls.sampleStepMm.value) || 0.3,
-    rotate: controls.rotate.value, place: controls.place.value, flipY: controls.flipY.checked,
-    unitsPerMm: parseFloat(controls.unitsPerMm.value) || 40,
-    bedWunits: parseInt(controls.bedWunits.value, 10) || MACHINE_DEFAULTS.bedWunits,
-    bedHunits: parseInt(controls.bedHunits.value, 10) || MACHINE_DEFAULTS.bedHunits,
-    cutTool: parseInt(controls.tool.value, 10) || 1,
+    userUnitsPerMm: parseFloat(sc.userUnitsPerMm.value) || (96 / 25.4),
+    sampleStepMm: parseFloat(sc.sampleStepMm.value) || 0.3,
+    rotate: sc.rotate.value, place: sc.place.value, flipY: sc.flipY.checked,
+    unitsPerMm: s.unitsPerMm || 40, bedWunits: s.bedWunits, bedHunits: s.bedHunits,
+    cutTool: s.cutTool, originXmm: s.originXmm, originYmm: s.originYmm,
   };
 }
 
@@ -38,17 +40,14 @@ async function loadFile(file) {
       const res = await extractCutPolylines(new Uint8Array(await file.arrayBuffer()));
       if (!res.polylines.length) {
         setStatus(res.cutFound
-          ? 'Found a "Cut" colour but no cut paths (they may be nested in an unsupported way). Try exporting the Cut layer as SVG.'
-          : 'No "Cut" spot colour found in this PDF. Mark cut lines with a spot colour named "Cut" in Illustrator.', 'warn');
+          ? 'Found a "Cut" colour but no cut paths (nested in an unsupported way). Try exporting the Cut layer as SVG.'
+          : 'No "Cut" spot colour found. Mark cut lines with a spot colour named "Cut" in Illustrator.', 'warn');
         clearContours(); return;
       }
       polylines = res.polylines;
     } else if (/\.svg$/i.test(file.name)) {
-      const text = await file.text();
-      polylines = svgToPolylines(text, { userUnitsPerMm: o.userUnitsPerMm, sampleStepMm: o.sampleStepMm }).polylines;
-    } else {
-      setStatus(`"${file.name}" is neither PDF nor SVG.`, 'warn'); return;
-    }
+      polylines = svgToPolylines(await file.text(), { userUnitsPerMm: o.userUnitsPerMm, sampleStepMm: o.sampleStepMm }).polylines;
+    } else { setStatus(`"${file.name}" is neither PDF nor SVG.`, 'warn'); return; }
     buildContours(polylines);
     setStatus(`Loaded ${file.name} — ${state.contours.length} cut contour(s).`, 'ok');
   } catch (err) { setStatus('Could not read file: ' + err.message, 'err'); }
@@ -62,8 +61,8 @@ function buildContours(polylines) {
   });
   renderContours(); regenerate();
 }
-
-function clearContours() { state.contours = []; renderContours(); $('pltOut').value = ''; $('stats').textContent = ''; $('exportBtn').disabled = true; $('saveStickBtn').disabled = true; $('sendLanBtn').disabled = true; drawEmpty(); }
+function clearContours() { state.contours = []; renderContours(); $('pltOut').value = ''; $('stats').textContent = ''; toggleOutputs(false); drawEmpty(); }
+function toggleOutputs(on) { $('exportBtn').disabled = !on; $('saveStickBtn').disabled = !on; $('sendLanBtn').disabled = !on; }
 
 $('fileInput').addEventListener('change', (e) => loadFile(e.target.files[0]));
 const drop = $('dropzone');
@@ -71,8 +70,7 @@ const drop = $('dropzone');
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('drag'); }));
 drop.addEventListener('drop', (e) => loadFile(e.dataTransfer.files[0]));
 $('loadSample').addEventListener('click', async () => {
-  const res = await fetch('./samples/test-square.svg');
-  const text = await res.text();
+  const text = await (await fetch('./samples/test-square.svg')).text();
   state.fileName = 'test-square.svg';
   buildContours(svgToPolylines(text, readOpts()).polylines);
   setStatus('Loaded sample.', 'ok');
@@ -85,7 +83,7 @@ function renderContours() {
   list.innerHTML = '';
   state.contours.forEach((c, i) => {
     const row = document.createElement('label'); row.className = 'contour-row';
-    row.innerHTML = `<input type="checkbox" ${c.selected ? 'checked' : ''} data-i="${i}">
+    row.innerHTML = `<input type="checkbox" ${c.selected ? 'checked' : ''}>
       <span class="swatch" style="background:${c.color}"></span>
       <span>Contour ${i + 1}</span>
       <span class="meta">${c.w.toFixed(1)} × ${c.h.toFixed(1)} mm · ${c.n} pts</span>`;
@@ -105,25 +103,26 @@ function chooseRotation(selected, o) {
   const fit = (deg) => { const a = rotateAndNormalize(selected, deg); return a.widthMm * o.unitsPerMm <= o.bedWunits && a.heightMm * o.unitsPerMm <= o.bedHunits; };
   if (fit(0)) return 0; if (fit(90)) return 90; return 0;
 }
-
 function regenerate() {
+  if (!sc.rotate) return;
   const o = readOpts();
   const selected = state.contours.filter(c => c.selected).map(c => c.pts);
-  if (!selected.length) { $('pltOut').value = ''; $('stats').textContent = 'No contours selected.'; $('exportBtn').disabled = true; $('saveStickBtn').disabled = true; $('sendLanBtn').disabled = true; drawEmpty(); return; }
+  if (!selected.length) { $('pltOut').value = ''; $('stats').textContent = state.contours.length ? 'No contours selected.' : ''; toggleOutputs(false); drawEmpty(); return; }
   const rot = chooseRotation(selected, o);
   const art = rotateAndNormalize(selected, rot);
   state.plt = polylinesToHPGL(art.polylines, {
     widthMm: art.widthMm, heightMm: art.heightMm, place: o.place, flipY: o.flipY,
     unitsPerMm: o.unitsPerMm, bedWunits: o.bedWunits, bedHunits: o.bedHunits, cutTool: o.cutTool,
+    originXmm: o.originXmm, originYmm: o.originYmm,
   });
   drawPreview(o, art);
   $('pltOut').value = state.plt;
   const st = hpglStats(state.plt);
   const fits = art.widthMm * o.unitsPerMm <= o.bedWunits && art.heightMm * o.unitsPerMm <= o.bedHunits;
   $('stats').textContent = `${art.polylines.length} contour(s) · ${art.widthMm.toFixed(1)} × ${art.heightMm.toFixed(1)} mm · rot ${rot}° · ${st.pdCount} pts · ${st.bytes} bytes` + (fits ? '' : ' · ⚠ exceeds bed');
-  $('exportBtn').disabled = false; $('saveStickBtn').disabled = false; $('sendLanBtn').disabled = false;
+  toggleOutputs(true);
 }
-Object.values(controls).forEach(c => c && c.addEventListener('change', regenerate));
+Object.values(sc).forEach(c => c && c.addEventListener('change', regenerate));
 
 // ---- preview canvas -------------------------------------------------------
 function drawEmpty() { const c = $('preview'), x = c.getContext('2d'); x.clearRect(0, 0, c.width, c.height); }
@@ -138,181 +137,174 @@ function drawPreview(o, art) {
   ctx.fillStyle = 'rgba(127,127,127,0.06)'; ctx.strokeStyle = 'rgba(120,140,170,0.6)'; ctx.lineWidth = 1;
   ctx.fillRect(ox, oy, bedWmm * scale, bedHmm * scale); ctx.strokeRect(ox, oy, bedWmm * scale, bedHmm * scale);
 
-  const offX = o.place === 'center' ? (bedWmm - art.widthMm) / 2 : 0;
-  const offY = o.place === 'center' ? (bedHmm - art.heightMm) / 2 : 0;
+  // anchor (bottom-left of art bbox) in machine mm, then draw Y-down on screen
+  const anchorX = o.place === 'origin' ? o.originXmm : (bedWmm - art.widthMm) / 2;
+  const anchorY = o.place === 'origin' ? o.originYmm : (bedHmm - art.heightMm) / 2;
+  // origin marker
+  ctx.fillStyle = '#f5a524';
+  ctx.beginPath(); ctx.arc(SX(o.originXmm), SY(bedHmm - o.originYmm), 3, 0, 7); ctx.fill();
+
   ctx.lineWidth = 1.4;
-  // Colour each contour to match its list swatch (selection order preserved).
   const selColors = state.contours.filter(c => c.selected).map(c => c.color);
   art.polylines.forEach((pl, i) => {
     ctx.strokeStyle = selColors[i] || '#e5484d';
-    ctx.beginPath(); ctx.moveTo(SX(offX + pl[0].x), SY(offY + pl[0].y));
-    for (let k = 1; k < pl.length; k++) ctx.lineTo(SX(offX + pl[k].x), SY(offY + pl[k].y));
+    ctx.beginPath();
+    const P = (p) => { const mx = anchorX + p.x; const my = o.flipY ? (art.heightMm - p.y) : p.y; return [SX(mx), SY(bedHmm - (anchorY + my))]; };
+    const [x0, y0] = P(pl[0]); ctx.moveTo(x0, y0);
+    for (let k = 1; k < pl.length; k++) { const [x, y] = P(pl[k]); ctx.lineTo(x, y); }
     ctx.stroke();
   });
 }
 
-// ---- export ---------------------------------------------------------------
+// ---- export / save-to-stick ----------------------------------------------
 $('exportBtn').addEventListener('click', () => {
   if (!state.plt) return;
   const base = (state.fileName || 'artwork').replace(/\.[^.]+$/, '');
-  const blob = new Blob([state.plt], { type: 'application/octet-stream' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${base}.plt`; a.click();
-  URL.revokeObjectURL(a.href);
-  setStatus(`Exported ${base}.plt — copy to the flash drive and open on the machine.`, 'ok');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([state.plt], { type: 'application/octet-stream' }));
+  a.download = `${base}.plt`; a.click(); URL.revokeObjectURL(a.href);
+  setStatus(`Exported ${base}.plt.`, 'ok');
 });
 
-// ---- Save straight to the USB stick (File System Access API) --------------
 let stickDir = null;
 const fsSupported = typeof window.showDirectoryPicker === 'function';
-
-// tiny IndexedDB store to remember the chosen folder across reloads
 function idb(op, val) {
   return new Promise((resolve) => {
-    const r = indexedDB.open('cutter-studio', 1);
+    const r = indexedDB.open('kerf', 1);
     r.onupgradeneeded = () => r.result.createObjectStore('kv');
     r.onerror = () => resolve(null);
-    r.onsuccess = () => {
-      try {
-        const tx = r.result.transaction('kv', op === 'get' ? 'readonly' : 'readwrite');
-        const s = tx.objectStore('kv');
-        const req = op === 'get' ? s.get('stickDir') : s.put(val, 'stickDir');
-        req.onsuccess = () => resolve(op === 'get' ? req.result : true);
-        req.onerror = () => resolve(null);
-      } catch { resolve(null); }
-    };
+    r.onsuccess = () => { try { const tx = r.result.transaction('kv', op === 'get' ? 'readonly' : 'readwrite'); const s = tx.objectStore('kv'); const req = op === 'get' ? s.get('stickDir') : s.put(val, 'stickDir'); req.onsuccess = () => resolve(op === 'get' ? req.result : true); req.onerror = () => resolve(null); } catch { resolve(null); } };
   });
 }
-
 async function ensureStick(interactive) {
-  if (!fsSupported) throw new Error('This browser has no folder access. Use Chrome/Edge, or use "Export .plt".');
+  if (!fsSupported) throw new Error('This browser has no folder access. Use Chrome/Edge, or "Export .plt".');
   if (stickDir) {
-    const p = await stickDir.queryPermission({ mode: 'readwrite' });
-    if (p === 'granted') return stickDir;
-    if (interactive && (await stickDir.requestPermission({ mode: 'readwrite' })) === 'granted') return stickDir;
+    if (await stickDir.queryPermission({ mode: 'readwrite' }) === 'granted') return stickDir;
+    if (interactive && await stickDir.requestPermission({ mode: 'readwrite' }) === 'granted') return stickDir;
   }
   if (!interactive) return null;
   stickDir = await window.showDirectoryPicker({ mode: 'readwrite' });
-  await idb('put', stickDir);
-  setStickNote();
-  return stickDir;
+  await idb('put', stickDir); setStickNote(); return stickDir;
 }
-
 function setStickNote() {
-  const n = $('stickNote');
-  if (!fsSupported) { n.textContent = 'Tip: "Save to USB stick" needs Chrome/Edge. Use "Export .plt" otherwise.'; return; }
-  n.textContent = stickDir ? `Saving to: ${stickDir.name}/ (click to pick a different folder: shift-click Save)` : 'First save will ask you to pick your USB stick once.';
+  const n = $('stickNote'); if (!n) return;
+  if (!fsSupported) { n.textContent = 'Tip: "Save to USB stick" needs Chrome/Edge.'; return; }
+  n.textContent = stickDir ? `Saving to: ${stickDir.name}/ (shift-click Save to change folder)` : 'First save asks you to pick your USB stick once.';
 }
-
 $('saveStickBtn').addEventListener('click', async (e) => {
   if (!state.plt) return;
   const base = (state.fileName || 'artwork').replace(/\.[^.]+$/, '');
   try {
-    // shift-click forces re-picking the folder
     if (e.shiftKey) stickDir = null;
-    const dir = await ensureStick(true);
-    if (!dir) return;
+    const dir = await ensureStick(true); if (!dir) return;
     const fh = await dir.getFileHandle(`${base}.plt`, { create: true });
-    const w = await fh.createWritable();
-    await w.write(state.plt); await w.close();
-    setStatus(`Saved ${base}.plt to ${dir.name}/ — eject the stick and cut on the machine.`, 'ok');
-  } catch (err) {
-    if (err?.name === 'AbortError') return; // user cancelled the picker
-    setStatus('Save failed: ' + err.message, 'err');
-  }
+    const w = await fh.createWritable(); await w.write(state.plt); await w.close();
+    setStatus(`Saved ${base}.plt to ${dir.name}/.`, 'ok');
+  } catch (err) { if (err?.name !== 'AbortError') setStatus('Save failed: ' + err.message, 'err'); }
 });
 
-// ---- Send to machine (transport-agnostic: Tauri / Node bridge / hosted) ----
-const ipv = () => $('ip').value.trim();
-const portv = () => $('port').value.trim();
-const lanLog = (msg) => { const el = $('lanLog'); el.hidden = false; el.textContent = msg; };
-const PENUP = () => `TB25,11080,7600;CT1;${' '.repeat(1025)}IN;PU5540,3800;PU1500,1500;PU5540,3800;PU11280,200;PG;`;
+// ---- machine command builders (machine coords, Y up, no flip) -------------
+function machineHeader() { const s = getSettings(); return `TB${s.tbParam},${s.bedWunits},${s.bedHunits};CT${s.cutTool};${PAD}`; }
+function buildMove(xmm, ymm) { const u = getSettings().unitsPerMm; return `${machineHeader()}IN;PU${Math.round(xmm * u)},${Math.round(ymm * u)};PG;`; }
+function buildPenupPath(ptsMm) { const u = getSettings().unitsPerMm; return `${machineHeader()}IN;` + ptsMm.map(p => `PU${Math.round(p.x * u)},${Math.round(p.y * u)};`).join('') + 'PG;'; }
+function bedMm() { const s = getSettings(); return { w: s.bedWunits / s.unitsPerMm, h: s.bedHunits / s.unitsPerMm }; }
 
-$('pingBtn').addEventListener('click', async () => {
-  lanLog(`Testing ${ipv()}:${portv()}…`);
-  setConn('checking', 'Checking…');
+// ---- send helpers ---------------------------------------------------------
+const ipv = () => getSettings().ip;
+const portv = () => String(getSettings().port);
+async function send(plt, logEl, okMsg) {
+  if (logEl) { logEl.hidden = false; logEl.textContent = 'Sending…'; }
   try {
-    const ms = await pingMachine(ipv(), portv());
-    lanLog(`✅ Reached ${ipv()}:${portv()} in ${ms} ms. Machine is ready to receive.`); setStatus('Machine reachable — ready to send.', 'ok');
-    setConn('online', `Connected · ${ipv()}`); startConnPoll();
-  } catch (err) { lanLog(`❌ ${ipv()}:${portv()} — ${err.message}\nMake sure the machine is on its main/ready screen (the plot port only opens there).`); setStatus('Not reachable — check the machine is on its ready screen.', 'warn'); setConn('offline', 'Not reachable'); }
-});
-
-$('penupBtn').addEventListener('click', async () => {
-  lanLog('Sending safe pen-up test (0 cuts)…');
-  try { const j = await sendPlt(ipv(), portv(), PENUP()); lanLog(`✅ Sent ${j.bytes} bytes to ${ipv()}:${portv()} (pen-up only). Watch the head — did it move?`); setStatus('Pen-up test sent.', 'ok'); }
-  catch (err) { lanLog('❌ ' + err.message + '\nMachine must be on its main/ready screen.'); setStatus('Send failed: ' + err.message, 'err'); }
-});
-
-$('sendLanBtn').addEventListener('click', async () => {
-  if (!state.plt) return;
-  lanLog(`Sending cut (${state.plt.length} bytes) to ${ipv()}:${portv()}…`);
-  try { const j = await sendPlt(ipv(), portv(), state.plt); lanLog(`✅ Cut sent — ${j.bytes} bytes to ${ipv()}:${portv()}.`); setStatus('Cut sent to the machine!', 'ok'); setConn('online', `Connected · ${ipv()}`); }
-  catch (err) { lanLog('❌ ' + err.message + '\nMachine must be on its main/ready screen.'); setStatus('Send failed: ' + err.message, 'err'); setConn('offline', 'Not reachable'); }
-});
-
-// ---- Top-bar connection status widget -------------------------------------
-let backendMode = 'web';
-let connPoll = null;
-function setConn(state, label) {
-  const dot = $('connDot'), lbl = $('connLabel');
-  if (dot) dot.className = 'led' + (state === 'online' ? ' on' : state === 'offline' ? ' off' : state === 'checking' ? ' checking' : '');
-  if (lbl) lbl.textContent = label;
-}
-function stopConnPoll() { if (connPoll) { clearInterval(connPoll); connPoll = null; } }
-function startConnPoll() {
-  stopConnPoll();
-  connPoll = setInterval(async () => {
-    try { await pingMachine(ipv(), portv()); setConn('online', `Connected · ${ipv()}`); }
-    catch { setConn('offline', 'Not reachable'); stopConnPoll(); }
-  }, 15000);
-}
-async function checkConnection() {
-  if (backendMode === 'web') { setConn('idle', 'Desktop app needed'); return; }
-  if (!ipv() || !portv()) { setConn('idle', 'Set IP first'); return; }
-  setConn('checking', 'Checking…');
-  const btn = $('connBtn'); if (btn) btn.disabled = true;
-  try {
-    const ms = await pingMachine(ipv(), portv());
+    const j = await sendPlt(ipv(), portv(), plt);
+    if (logEl) logEl.textContent = `✅ ${okMsg} (${j.bytes} bytes → ${ipv()}:${portv()})`;
     setConn('online', `Connected · ${ipv()}`);
-    if (btn) btn.textContent = 'Recheck';
-    startConnPoll();
-  } catch {
-    setConn('offline', 'Not reachable');
-    stopConnPoll();
-  } finally { if (btn) btn.disabled = false; }
+    return true;
+  } catch (err) {
+    if (logEl) logEl.textContent = '❌ ' + err.message + '\nMachine must be on its main/ready screen.';
+    setConn('offline', 'Not reachable'); return false;
+  }
 }
-$('connBtn').addEventListener('click', () => {
-  if (backendMode === 'web') { const b = document.getElementById('downloadBar'); if (b) { b.hidden = false; b.scrollIntoView({ behavior: 'smooth' }); } return; }
-  checkConnection();
-});
+async function testConn(logEl) {
+  if (logEl) { logEl.hidden = false; logEl.textContent = `Testing ${ipv()}:${portv()}…`; }
+  setConn('checking', 'Checking…');
+  try {
+    const ms = await pingMachine(ipv(), portv());
+    if (logEl) logEl.textContent = `✅ Reached ${ipv()}:${portv()} in ${ms} ms — ready to receive.`;
+    setConn('online', `Connected · ${ipv()}`); startConnPoll(); return true;
+  } catch (err) {
+    if (logEl) logEl.textContent = `❌ ${ipv()}:${portv()} — ${err.message}\nMake sure the machine is on its main/ready screen.`;
+    setConn('offline', 'Not reachable'); stopConnPoll(); return false;
+  }
+}
 
-// Adapt UI to the edition: hosted web has no machine link → show a download note.
+// Studio send buttons
+$('pingBtn').addEventListener('click', () => testConn($('lanLog')));
+$('penupBtn').addEventListener('click', () => { const { w, h } = bedMm(); send(buildPenupPath([{ x: w / 2, y: h / 2 }, { x: w / 2 - 30, y: h / 2 - 30 }, { x: w / 2, y: h / 2 }]), $('lanLog'), 'Pen-up test sent — watch the head'); });
+$('sendLanBtn').addEventListener('click', () => { if (state.plt) send(state.plt, $('lanLog'), 'Cut sent'); });
+
+// ---- Machine config page --------------------------------------------------
+const cfg = { cfgIp: $('cfgIp'), cfgPort: $('cfgPort'), unitsPerMm: $('unitsPerMm'), bedWunits: $('bedWunits'), bedHunits: $('bedHunits'), cutTool: $('cutTool'), originXmm: $('originXmm'), originYmm: $('originYmm') };
+function populateConfig() {
+  const s = getSettings();
+  cfg.cfgIp.value = s.ip; cfg.cfgPort.value = s.port; cfg.unitsPerMm.value = s.unitsPerMm;
+  cfg.bedWunits.value = s.bedWunits; cfg.bedHunits.value = s.bedHunits; cfg.cutTool.value = s.cutTool;
+  cfg.originXmm.value = s.originXmm; cfg.originYmm.value = s.originYmm;
+  updateBedNote();
+}
+function readConfig() {
+  saveSettings({
+    ip: cfg.cfgIp.value.trim(), port: parseInt(cfg.cfgPort.value, 10) || 5000,
+    unitsPerMm: parseFloat(cfg.unitsPerMm.value) || 40,
+    bedWunits: parseInt(cfg.bedWunits.value, 10) || 11080, bedHunits: parseInt(cfg.bedHunits.value, 10) || 7600,
+    cutTool: parseInt(cfg.cutTool.value, 10) || 1,
+    originXmm: parseFloat(cfg.originXmm.value) || 0, originYmm: parseFloat(cfg.originYmm.value) || 0,
+  });
+}
+function updateBedNote() { const { w, h } = bedMm(); const n = $('bedMmNote'); if (n) n.textContent = `Bed ≈ ${w.toFixed(0)} × ${h.toFixed(0)} mm`; }
+Object.values(cfg).forEach(el => el && el.addEventListener('input', () => { readConfig(); updateBedNote(); regenerate(); if (getSettings().ip) setConn(connState, connLabelText()); }));
+
+$('cfgTestBtn').addEventListener('click', () => testConn($('configLog')));
+$('moveOriginBtn').addEventListener('click', () => { const s = getSettings(); send(buildMove(s.originXmm, s.originYmm), $('configLog'), `Head → origin (${s.originXmm}, ${s.originYmm}) mm`); });
+$('moveCenterBtn').addEventListener('click', () => { const { w, h } = bedMm(); send(buildMove(w / 2, h / 2), $('configLog'), 'Head → bed center'); });
+$('frameBtn').addEventListener('click', () => { const { w, h } = bedMm(); send(buildPenupPath([{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }, { x: 0, y: 0 }]), $('configLog'), 'Traced bed frame (pen-up)'); });
+$('squareBtn').addEventListener('click', () => { const s = getSettings(); const x = s.originXmm, y = s.originYmm; send(buildPenupPath([{ x, y }, { x: x + 20, y }, { x: x + 20, y: y + 20 }, { x, y: y + 20 }, { x, y }]), $('configLog'), '20 mm square at origin (pen-up)'); });
+$('resetBtn').addEventListener('click', () => { resetSettings(); populateConfig(); regenerate(); setStatus('Settings reset to defaults.', 'ok'); });
+
+// ---- connection status widget ---------------------------------------------
+let connPoll = null, connState = 'idle';
+function connLabelText() { return connState === 'online' ? `Connected · ${ipv()}` : connState === 'offline' ? 'Not reachable' : connState === 'checking' ? 'Checking…' : (backendMode === 'web' ? 'Desktop app needed' : 'Not connected'); }
+function setConn(st, label) { connState = st; const dot = $('connDot'), lbl = $('connLabel'); if (dot) dot.className = 'led' + (st === 'online' ? ' on' : st === 'offline' ? ' off' : st === 'checking' ? ' checking' : ''); if (lbl) lbl.textContent = label ?? connLabelText(); }
+function stopConnPoll() { if (connPoll) { clearInterval(connPoll); connPoll = null; } }
+function startConnPoll() { stopConnPoll(); connPoll = setInterval(async () => { try { await pingMachine(ipv(), portv()); setConn('online'); } catch { setConn('offline'); stopConnPoll(); } }, 15000); }
+$('connBtn').addEventListener('click', () => { if (backendMode === 'web') { location.hash = '#get'; return; } testConn(null); });
+
+// ---- routing --------------------------------------------------------------
+const VIEWS = ['studio', 'config', 'get'];
+function showView(v) {
+  if (!VIEWS.includes(v)) v = 'studio';
+  VIEWS.forEach(id => { const el = $('view-' + id); if (el) el.hidden = id !== v; });
+  document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('active', a.dataset.view === v));
+}
+window.addEventListener('hashchange', () => showView(location.hash.replace('#', '')));
+showView(location.hash.replace('#', '') || 'studio');
+
+// ---- boot -----------------------------------------------------------------
+populateConfig();
+setStickNote();
+(async () => { if (fsSupported) { try { const h = await idb('get'); if (h && (await h.queryPermission({ mode: 'readwrite' })) !== 'denied') stickDir = h; } catch {} setStickNote(); } })();
+
 detectBackend().then((mode) => {
   backendMode = mode;
-  const panel = document.getElementById('lanPanel');
-  const tag = document.getElementById('lanTag');
-  const bar = document.getElementById('downloadBar');
+  const cb = $('connBtn'), tag = $('lanTag'), panel = $('lanPanel'), note = $('webSendNote');
   if (mode === 'web') {
     if (panel) panel.hidden = true;
-    const note = document.getElementById('webSendNote');
     if (note) note.hidden = false;
-    if (bar) bar.hidden = false;            // show the download banner to web visitors
-    setConn('idle', 'Desktop app needed');
-    const cb = $('connBtn'); if (cb) cb.textContent = 'Get app';
+    setConn('idle', 'Desktop app needed'); if (cb) cb.textContent = 'Get app';
   } else {
     if (tag) tag.textContent = mode === 'tauri' ? 'Kerf app' : 'LAN';
-    if (bar) bar.hidden = true;             // already have the app / bridge
-    checkConnection();                       // auto-check once on load
+    testConn(null);   // auto-check once
   }
 });
 
-// Restore the saved USB-stick folder handle on load (permission re-checked lazily).
-(async () => {
-  if (!fsSupported) { setStickNote(); return; }
-  try { const h = await idb('get'); if (h && (await h.queryPermission({ mode: 'readwrite' })) !== 'denied') stickDir = h; } catch {}
-  setStickNote();
-})();
-
-// ---- status ---------------------------------------------------------------
 function setStatus(msg, kind = '') { const el = $('status'); el.textContent = msg; el.className = `status ${kind}`; }
 setStatus('Drop a PDF or SVG (or click "Load sample") to begin.');

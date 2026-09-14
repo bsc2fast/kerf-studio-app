@@ -38,16 +38,15 @@ export function polylinesToHPGL(polylines, opts = {}) {
   const widthMm = opts.widthMm ?? 0;
   const heightMm = opts.heightMm ?? 0;
 
-  // Offset that positions the art box on the bed.
-  const artWu = widthMm * u, artHu = heightMm * u;
-  const offX = place === 'center' ? (BW - artWu) / 2 : 0;
-  const offY = place === 'center' ? (BH - artHu) / 2 : 0;
+  // Work in machine millimetres, then scale to plotter units. The art bbox is
+  // anchored by its BOTTOM-LEFT corner at (anchorX, anchorY) in machine mm.
+  const bedWmm = BW / u, bedHmm = BH / u;
+  const anchorX = place === 'origin' ? (opts.originXmm ?? 0) : (bedWmm - widthMm) / 2;
+  const anchorY = place === 'origin' ? (opts.originYmm ?? 0) : (bedHmm - heightMm) / 2;
 
-  const X = (mm) => Math.round(offX + mm * u);
-  const Y = (mm) => {
-    const py = offY + mm * u;
-    return Math.round(flipY ? (BH - py) : py);
-  };
+  // Incoming art points are Y-down (SVG/PDF). flipY makes Y grow upward (machine).
+  const X = (mm) => Math.round((anchorX + mm) * u);
+  const Y = (mm) => Math.round((anchorY + (flipY ? (heightMm - mm) : mm)) * u);
 
   const parts = [];
   parts.push(`TB${m.tbParam},${BW},${BH};CT${m.cutTool};`);
