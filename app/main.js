@@ -203,10 +203,6 @@ $('saveStickBtn').addEventListener('click', async (e) => {
   } catch (err) { if (err?.name !== 'AbortError') setStatus('Save failed: ' + err.message, 'err'); }
 });
 
-// ---- machine command builders (machine coords, Y up, no flip) -------------
-function machineHeader() { const s = getSettings(); return `TB${s.tbParam},${s.bedWunits},${s.bedHunits};CT${s.cutTool};${PAD}`; }
-function buildMove(xmm, ymm) { const u = getSettings().unitsPerMm; return `${machineHeader()}IN;PU${Math.round(xmm * u)},${Math.round(ymm * u)};PG;`; }
-function buildPenupPath(ptsMm) { const u = getSettings().unitsPerMm; return `${machineHeader()}IN;` + ptsMm.map(p => `PU${Math.round(p.x * u)},${Math.round(p.y * u)};`).join('') + 'PG;'; }
 function bedMm() { const s = getSettings(); return { w: s.bedWunits / s.unitsPerMm, h: s.bedHunits / s.unitsPerMm }; }
 
 // ---- send helpers ---------------------------------------------------------
@@ -239,8 +235,7 @@ async function testConn(logEl) {
 
 // Studio send buttons
 $('pingBtn').addEventListener('click', () => testConn($('lanLog')));
-$('penupBtn').addEventListener('click', () => { const { w, h } = bedMm(); send(buildPenupPath([{ x: w / 2, y: h / 2 }, { x: w / 2 - 30, y: h / 2 - 30 }, { x: w / 2, y: h / 2 }]), $('lanLog'), 'Pen-up test sent — watch the head'); });
-$('sendLanBtn').addEventListener('click', () => { if (state.plt) send(state.plt, $('lanLog'), 'Cut sent'); });
+$('sendLanBtn').addEventListener('click', () => { if (state.plt) send(state.plt, $('lanLog'), 'Cut sent — machine will scan the marks and cut'); });
 
 // ---- Machine config page --------------------------------------------------
 const cfg = { cfgIp: $('cfgIp'), cfgPort: $('cfgPort'), unitsPerMm: $('unitsPerMm'), bedWunits: $('bedWunits'), bedHunits: $('bedHunits'), cutTool: $('cutTool'), originXmm: $('originXmm'), originYmm: $('originYmm') };
@@ -264,10 +259,6 @@ function updateBedNote() { const { w, h } = bedMm(); const n = $('bedMmNote'); i
 Object.values(cfg).forEach(el => el && el.addEventListener('input', () => { readConfig(); updateBedNote(); regenerate(); if (getSettings().ip) setConn(connState, connLabelText()); }));
 
 $('cfgTestBtn').addEventListener('click', () => testConn($('configLog')));
-$('moveOriginBtn').addEventListener('click', () => { const s = getSettings(); send(buildMove(s.originXmm, s.originYmm), $('configLog'), `Head → origin (${s.originXmm}, ${s.originYmm}) mm`); });
-$('moveCenterBtn').addEventListener('click', () => { const { w, h } = bedMm(); send(buildMove(w / 2, h / 2), $('configLog'), 'Head → bed center'); });
-$('frameBtn').addEventListener('click', () => { const { w, h } = bedMm(); send(buildPenupPath([{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }, { x: 0, y: 0 }]), $('configLog'), 'Traced bed frame (pen-up)'); });
-$('squareBtn').addEventListener('click', () => { const s = getSettings(); const x = s.originXmm, y = s.originYmm; send(buildPenupPath([{ x, y }, { x: x + 20, y }, { x: x + 20, y: y + 20 }, { x, y: y + 20 }, { x, y }]), $('configLog'), '20 mm square at origin (pen-up)'); });
 $('resetBtn').addEventListener('click', () => { resetSettings(); populateConfig(); regenerate(); setStatus('Settings reset to defaults.', 'ok'); });
 
 // ---- connection status widget ---------------------------------------------

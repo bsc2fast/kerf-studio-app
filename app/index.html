@@ -81,13 +81,10 @@
           <div class="controls" id="lanPanel">
             <div class="row">
               <button id="pingBtn" class="btn" type="button">Test connection</button>
-              <button id="penupBtn" class="btn" type="button">Safe pen-up test</button>
-            </div>
-            <div class="row">
               <button id="sendLanBtn" class="btn primary" type="button" disabled>Send cut to machine</button>
             </div>
             <pre id="lanLog" class="serial-log" hidden></pre>
-            <p class="hint">Machine must be on its <strong>main/ready screen</strong>. Set IP &amp; origin on the <a href="#config">Machine page</a>.</p>
+            <p class="hint">Load your printed sheet (with registration marks), make sure the machine is on its <strong>main/ready screen</strong>, then Send. The machine scans the marks and cuts. Set IP on the <a href="#config">Machine page</a>.</p>
           </div>
         </section>
 
@@ -122,6 +119,7 @@
               Port <input id="cfgPort" type="number" step="1" value="5000" />
             </label>
             <div class="row"><button id="cfgTestBtn" class="btn" type="button">Test connection</button></div>
+            <pre id="configLog" class="serial-log" hidden></pre>
             <p class="hint">The plot port only opens while the machine is on its <strong>main/ready screen</strong>.</p>
           </div>
         </section>
@@ -148,26 +146,22 @@
         <section class="panel">
           <h2>Origin</h2>
           <div class="controls">
-            <p class="hint">Where the head parks / where "At origin" placement anchors the design — measured in mm from the bed's bottom-left corner.</p>
+            <p class="hint">Anchor point for the Studio's <strong>“At origin”</strong> placement — mm from the bed's bottom-left corner. (Used when generating the cut; the machine still aligns to your printed marks.)</p>
             <label>Origin X (mm) <input id="originXmm" type="number" step="0.5" value="0" /></label>
             <label>Origin Y (mm) <input id="originYmm" type="number" step="0.5" value="0" /></label>
-            <div class="row">
-              <button id="moveOriginBtn" class="btn primary" type="button">Move head to origin</button>
-            </div>
-            <p class="hint">Blade up / no material for test moves.</p>
           </div>
         </section>
 
         <section class="panel">
-          <h2>Tests <span class="hint">one at a time</span></h2>
+          <h2>How this machine works</h2>
           <div class="controls">
-            <div class="row wrap">
-              <button id="moveCenterBtn" class="btn" type="button">Move to bed center</button>
-              <button id="frameBtn" class="btn" type="button">Trace bed frame (pen-up)</button>
-              <button id="squareBtn" class="btn" type="button">20 mm square at origin (pen-up)</button>
-            </div>
-            <pre id="configLog" class="serial-log" hidden></pre>
-            <div class="row"><button id="resetBtn" class="btn ghost tiny" type="button">Reset all to defaults</button></div>
+            <p class="hint">This is a <strong>camera print-and-cut</strong> machine. Every job it receives over the network runs a <strong>camera registration scan</strong> to find the printed marks on your sheet, then cuts aligned to them. That scan can't be turned off, and there's no separate “jog” channel over the network.</p>
+            <ul class="get-notes">
+              <li><strong>To cut:</strong> load your printed, marked sheet → Studio → <em>Send cut to machine</em>. It scans and cuts.</li>
+              <li><strong>To jog / home / move the head</strong> (Up · Down · Home): use the <strong>machine's own touchscreen</strong> — those are the only moves that don't scan.</li>
+              <li><strong>Test connection</strong> above is safe (it never sends a job).</li>
+            </ul>
+            <div class="row"><button id="resetBtn" class="btn ghost tiny" type="button">Reset settings to defaults</button></div>
           </div>
         </section>
       </div>
