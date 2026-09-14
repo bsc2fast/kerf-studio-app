@@ -8,8 +8,20 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>Kerf</h1>
-    <span class="sub">PDF/SVG → <code>.plt</code> · cut over the network, or save to USB</span>
+    <div class="brand">
+      <h1>Kerf</h1>
+      <span class="sub">PDF/SVG → <code>.plt</code> · cut over the network, or save to USB</span>
+    </div>
+    <div id="connWidget" class="conn" title="Machine connection">
+      <svg class="dev-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="12" rx="1.5"/>
+        <path d="M8 20h8M12 16v4"/>
+        <circle cx="17" cy="8" r="1" fill="currentColor" stroke="none"/>
+      </svg>
+      <span id="connDot" class="led" aria-hidden="true"></span>
+      <span id="connLabel" class="conn-label">Not connected</span>
+      <button id="connBtn" class="btn tiny" type="button">Connect</button>
+    </div>
   </header>
 
   <div id="downloadBar" class="downloadbar" hidden>

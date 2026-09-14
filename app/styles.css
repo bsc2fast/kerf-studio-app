@@ -27,11 +27,28 @@ body {
 code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 0.9em; }
 
 .topbar {
-  display: flex; align-items: baseline; gap: 12px;
-  padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--panel);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--panel);
 }
+.topbar .brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
 .topbar h1 { margin: 0; font-size: 18px; }
-.topbar .sub { color: var(--muted); font-size: 13px; }
+.topbar .sub { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.conn {
+  display: flex; align-items: center; gap: 8px; flex: 0 0 auto;
+  padding: 5px 8px 5px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-2);
+}
+.conn .dev-icon { color: var(--muted); flex: 0 0 auto; }
+.conn .conn-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.conn .led {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: 0 0 auto;
+  box-shadow: 0 0 0 0 transparent; transition: background .2s;
+}
+.conn .led.on  { background: var(--ok);  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--ok) 70%, transparent); }
+.conn .led.off { background: var(--err); }
+.conn .led.checking { background: var(--warn); animation: ledpulse 1s ease-in-out infinite; }
+@keyframes ledpulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+@media (max-width: 620px) { .topbar .sub { display: none; } .conn .conn-label { display: none; } }
 
 .grid {
   display: grid; grid-template-columns: minmax(320px, 420px) 1fr;

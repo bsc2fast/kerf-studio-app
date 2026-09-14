@@ -229,10 +229,12 @@ const PENUP = () => `TB25,11080,7600;CT1;${' '.repeat(1025)}IN;PU5540,3800;PU150
 
 $('pingBtn').addEventListener('click', async () => {
   lanLog(`Testing ${ipv()}:${portv()}…`);
+  setConn('checking', 'Checking…');
   try {
     const ms = await pingMachine(ipv(), portv());
     lanLog(`✅ Reached ${ipv()}:${portv()} in ${ms} ms. Machine is ready to receive.`); setStatus('Machine reachable — ready to send.', 'ok');
-  } catch (err) { lanLog(`❌ ${ipv()}:${portv()} — ${err.message}\nMake sure the machine is on its main/ready screen (the plot port only opens there).`); setStatus('Not reachable — check the machine is on its ready screen.', 'warn'); }
+    setConn('online', `Connected · ${ipv()}`); startConnPoll();
+  } catch (err) { lanLog(`❌ ${ipv()}:${portv()} — ${err.message}\nMake sure the machine is on its main/ready screen (the plot port only opens there).`); setStatus('Not reachable — check the machine is on its ready screen.', 'warn'); setConn('offline', 'Not reachable'); }
 });
 
 $('penupBtn').addEventListener('click', async () => {
@@ -244,12 +246,49 @@ $('penupBtn').addEventListener('click', async () => {
 $('sendLanBtn').addEventListener('click', async () => {
   if (!state.plt) return;
   lanLog(`Sending cut (${state.plt.length} bytes) to ${ipv()}:${portv()}…`);
-  try { const j = await sendPlt(ipv(), portv(), state.plt); lanLog(`✅ Cut sent — ${j.bytes} bytes to ${ipv()}:${portv()}.`); setStatus('Cut sent to the machine!', 'ok'); }
-  catch (err) { lanLog('❌ ' + err.message + '\nMachine must be on its main/ready screen.'); setStatus('Send failed: ' + err.message, 'err'); }
+  try { const j = await sendPlt(ipv(), portv(), state.plt); lanLog(`✅ Cut sent — ${j.bytes} bytes to ${ipv()}:${portv()}.`); setStatus('Cut sent to the machine!', 'ok'); setConn('online', `Connected · ${ipv()}`); }
+  catch (err) { lanLog('❌ ' + err.message + '\nMachine must be on its main/ready screen.'); setStatus('Send failed: ' + err.message, 'err'); setConn('offline', 'Not reachable'); }
+});
+
+// ---- Top-bar connection status widget -------------------------------------
+let backendMode = 'web';
+let connPoll = null;
+function setConn(state, label) {
+  const dot = $('connDot'), lbl = $('connLabel');
+  if (dot) dot.className = 'led' + (state === 'online' ? ' on' : state === 'offline' ? ' off' : state === 'checking' ? ' checking' : '');
+  if (lbl) lbl.textContent = label;
+}
+function stopConnPoll() { if (connPoll) { clearInterval(connPoll); connPoll = null; } }
+function startConnPoll() {
+  stopConnPoll();
+  connPoll = setInterval(async () => {
+    try { await pingMachine(ipv(), portv()); setConn('online', `Connected · ${ipv()}`); }
+    catch { setConn('offline', 'Not reachable'); stopConnPoll(); }
+  }, 15000);
+}
+async function checkConnection() {
+  if (backendMode === 'web') { setConn('idle', 'Desktop app needed'); return; }
+  if (!ipv() || !portv()) { setConn('idle', 'Set IP first'); return; }
+  setConn('checking', 'Checking…');
+  const btn = $('connBtn'); if (btn) btn.disabled = true;
+  try {
+    const ms = await pingMachine(ipv(), portv());
+    setConn('online', `Connected · ${ipv()}`);
+    if (btn) btn.textContent = 'Recheck';
+    startConnPoll();
+  } catch {
+    setConn('offline', 'Not reachable');
+    stopConnPoll();
+  } finally { if (btn) btn.disabled = false; }
+}
+$('connBtn').addEventListener('click', () => {
+  if (backendMode === 'web') { const b = document.getElementById('downloadBar'); if (b) { b.hidden = false; b.scrollIntoView({ behavior: 'smooth' }); } return; }
+  checkConnection();
 });
 
 // Adapt UI to the edition: hosted web has no machine link → show a download note.
 detectBackend().then((mode) => {
+  backendMode = mode;
   const panel = document.getElementById('lanPanel');
   const tag = document.getElementById('lanTag');
   const bar = document.getElementById('downloadBar');
@@ -258,9 +297,12 @@ detectBackend().then((mode) => {
     const note = document.getElementById('webSendNote');
     if (note) note.hidden = false;
     if (bar) bar.hidden = false;            // show the download banner to web visitors
+    setConn('idle', 'Desktop app needed');
+    const cb = $('connBtn'); if (cb) cb.textContent = 'Get app';
   } else {
     if (tag) tag.textContent = mode === 'tauri' ? 'Kerf app' : 'LAN';
     if (bar) bar.hidden = true;             // already have the app / bridge
+    checkConnection();                       // auto-check once on load
   }
 });
 
