@@ -66,7 +66,12 @@ export function svgToPolylines(svgText, opts = {}) {
         prev = v;
       };
 
-      for (let d = 0; d < len; d += stepUU) pushPoint(d);
+      // getTotalLength/getPointAtLength are in the element's own units; under a
+      // scale() transform the step has to shrink by that scale, or the samples
+      // come out coarser than sampleStepMm and break into false subpaths.
+      const elScale = ctm ? Math.sqrt(Math.abs(ctm.a * ctm.d - ctm.b * ctm.c)) || 1 : 1;
+      const stepEl = stepUU / elScale;
+      for (let d = 0; d < len; d += stepEl) pushPoint(d);
       pushPoint(len); // always include the exact endpoint
       if (current.length > 1) polylines.push(current);
     }
