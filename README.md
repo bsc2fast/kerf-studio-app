@@ -1,4 +1,4 @@
-# flatbed-cutter-control
+# kerf-studio-app
 
 Drive an unbranded flatbed blade-cutting machine from a Mac — turn artwork into a
 cut file and send it to the machine, with **no vendor software and no Windows PC**.

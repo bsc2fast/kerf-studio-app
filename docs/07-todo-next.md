@@ -57,7 +57,7 @@ Get-app page.
 
 ## 4. Optional polish
 
-- Rename repo/folder `flatbed-cutter-control` → `kerf`.
+- ~~Rename repo/folder~~ — done 2026-10-23: `flatbed-cutter-control` → `kerf-studio-app`.
 - Code-signing (Apple Developer + Windows certs) to remove first-run warnings.
 
 ## Not doing (settled)

@@ -98,7 +98,8 @@ Revisit **Tauri** later if we want a polished tray app with an "IP setup" button
 ## Decisions (LOCKED 2026-09-11)
 
 - **Name: `Kerf`** → `kerf.sankhacooray.com`; app title "Kerf"; rename repo/folder
-  `flatbed-cutter-control` → `kerf` when we execute.
+  `flatbed-cutter-control` → `kerf` when we execute. (Done 2026-10-23 as
+  `kerf-studio-app`; the site is the separate `kerf-sankhacooray-com` repo.)
 - **Packaging: Tauri** tray app (chosen over Bun/pkg for a polished result). Implies:
   - A small Rust/Tauri shell with a **tray icon** and a webview that loads `app/`.
   - The TCP send + local HTTP can move into Tauri's Rust side (a Rust `TcpStream`
