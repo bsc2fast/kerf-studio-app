@@ -43,7 +43,9 @@ Open <http://localhost:8080/> in **Chrome/Edge**. Drop a PDF → pick contours �
 
 ## Layout
 
-- `app/`      — Cutter Studio web app (PDF→`.plt`, preview, save/send)
+- `app/`      — Cutter Studio web app (PDF/SVG/PLT→`.plt`, preview, save/send).
+  Also hosted at <https://kerf.sankhacooray.com/studio/>, deployed from the
+  sibling repo `kerf-sankhacooray-com` (it copies this folder at deploy time).
 - `server.mjs`— local Node bridge (serves the app + forwards `.plt` to the machine
   over TCP, since browsers can't open raw sockets)
 - `scripts/`  — `serve.sh` (run the bridge), `detect.sh` (USB detection)
