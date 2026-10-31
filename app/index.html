@@ -19,6 +19,10 @@
       <span id="connDot" class="dot" aria-hidden="true"></span>
       <span id="connLabel">Not connected</span>
     </button>
+    <a id="updatePill" class="pill update" href="#config" hidden title="A newer Kerf Studio is available">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+      <span id="updateLabel">Update</span>
+    </a>
     <span class="spacer"></span>
     <button id="exportBtn" class="pill act" type="button" disabled title="Download the .plt">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
@@ -133,6 +137,17 @@
               <button id="cfgTestBtn" class="btn" type="button">Test connection</button>
               <pre id="configLog" class="log" hidden></pre>
               <p class="muted small">The plot port only opens on the machine's <b>main/ready screen</b>.</p>
+            </div>
+          </section>
+          <section id="studioCard" class="card">
+            <div class="cardhead">Kerf Studio <span id="verNote" class="muted"></span></div>
+            <div class="cardbody ctrls">
+              <p id="verStatus" class="small">Checking for updates…</p>
+              <ul id="verIncoming" class="incoming" hidden></ul>
+              <div class="btnrow">
+                <button id="verCheckBtn" class="btn" type="button">Check now</button>
+                <button id="verUpdateBtn" class="btn primary" type="button" disabled>Update now</button>
+              </div>
             </div>
           </section>
           <section class="card">

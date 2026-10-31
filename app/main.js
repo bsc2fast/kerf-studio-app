@@ -3,7 +3,7 @@ import { svgToPolylines, rotateAndNormalize, boundsOf } from './lib/svg-parse.js
 import { extractCutPolylines } from './lib/pdf-cut.js';
 import { polylinesToHPGL, hpglStats } from './lib/hpgl.js';
 import { parsePlt } from './lib/plt-parse.js';
-import { pingMachine, sendPlt } from './lib/transport.js';
+import { pingMachine, sendPlt, getVersion, updateStudio, waitForRestart } from './lib/transport.js';
 import { getSettings, saveSettings, resetSettings } from './lib/settings.js';
 
 const $ = (id) => document.getElementById(id);
@@ -424,6 +424,39 @@ function stopConnPoll() { if (connPoll) { clearInterval(connPoll); connPoll = nu
 function startConnPoll() { stopConnPoll(); connPoll = setInterval(async () => { try { await pingMachine(ipv(), portv()); setConn('online'); } catch { setConn('offline'); stopConnPoll(); } }, 15000); }
 $('connWidget').addEventListener('click', () => testConn($('lanLog')));
 
+// ---- Studio updates (git) ---------------------------------------------------
+// The server checks the remote on launch; when this clone is behind, the app-bar
+// chip appears and Machine settings → Kerf Studio pulls the update (fast-forward
+// only), waits for the server to restart, then reloads.
+const escHtml = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function renderVersion(v, err) {
+  const st = $('verStatus'), list = $('verIncoming'), up = $('verUpdateBtn'), pill = $('updatePill');
+  st.className = 'small'; list.hidden = true; up.disabled = true; pill.hidden = true;
+  $('verNote').textContent = v?.current ? `${v.current} · ${v.date}` : '';
+  if (err) { st.textContent = `Couldn't check for updates: ${err}`; st.classList.add('warn'); return; }
+  if (!v.git || !v.upstream) { st.textContent = v.reason; return; }
+  if (!v.behind) { st.textContent = 'Up to date.'; return; }
+  st.textContent = `${v.behind} update${v.behind === 1 ? '' : 's'} available.`;
+  list.innerHTML = v.incoming.map(l => `<li><span>${escHtml(l.slice(0, 10))}</span>${escHtml(l.slice(11))}</li>`).join('');
+  list.hidden = false;
+  if (v.dirty) { st.textContent += ' Files in this folder were changed by hand, so update with git pull.'; st.classList.add('warn'); }
+  else up.disabled = false;
+  $('updateLabel').textContent = `Update · ${v.behind} new`; pill.hidden = false;
+}
+async function checkUpdates(mode) {
+  try { renderVersion(await getVersion(mode)); } catch (e) { renderVersion(null, e.message); }
+}
+$('verCheckBtn').addEventListener('click', () => { $('verStatus').textContent = 'Checking…'; checkUpdates('force'); });
+$('verUpdateBtn').addEventListener('click', async () => {
+  const b = $('verUpdateBtn'), st = $('verStatus');
+  b.disabled = true; st.className = 'small'; st.textContent = 'Updating…';
+  try {
+    const r = await updateStudio();
+    if (r.restarting) { st.textContent = 'Restarting…'; await waitForRestart(r.from); }
+    location.reload();
+  } catch (e) { st.textContent = `Update failed: ${e.message}`; st.classList.add('warn'); b.disabled = false; }
+});
+
 // ---- routing ----------------------------------------------------------------
 const VIEWS = ['studio', 'config'];
 function showView(v) {
@@ -450,4 +483,6 @@ setStickNote();
 (async () => { if (fsSupported) { try { const h = await idb('get'); if (h && (await h.queryPermission({ mode: 'readwrite' })) !== 'denied') stickDir = h; } catch {} setStickNote(); } })();
 
 testConn(null);   // auto-check once
+checkUpdates(true);
+setInterval(() => checkUpdates(true), 6 * 3600e3);
 drawPreview();

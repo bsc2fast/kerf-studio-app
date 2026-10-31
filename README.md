@@ -53,6 +53,21 @@ node server.mjs            # or: bash scripts/serve.sh
 
 Open **<http://localhost:8080>**. Another port: `node server.mjs 8090`.
 
+### Updates
+
+Kerf Studio updates itself from GitHub. Each time the server starts (and every
+few hours while it runs) it checks for new commits; when there are some, an
+**Update** chip appears in the app bar. **⚙ Machine settings → Kerf Studio**
+lists what's new; **Update now** pulls it, restarts the server and reloads the
+page. Nothing installs without that click.
+
+It only fast-forwards. If you've edited files in the folder, or downloaded a zip
+instead of cloning, update by hand:
+
+```sh
+git pull          # in the kerf-studio-app folder, then restart node server.mjs
+```
+
 ### Point it at your cutter
 
 1. On the cutter, open its **Network** screen and note the IP (factory default
@@ -114,8 +129,9 @@ with `python3 scripts/make-sample.py`.
 
 ## Layout
 
-* `server.mjs` — the local server: serves `app/` and forwards `.plt` to the
-  cutter over TCP (browsers can't open raw sockets)
+* `server.mjs` — the local server: serves `app/`, forwards `.plt` to the
+  cutter over TCP (browsers can't open raw sockets), and checks for / pulls
+  updates (a small supervisor restarts it after one)
 * `app/` — the Studio (plain HTML/JS modules); `app/samples/` holds the test sheet
 * `scripts/make-sample.py` — builds the sample PDF (no dependencies)
 * `docs/` — how the machine and its `.plt` format were figured out

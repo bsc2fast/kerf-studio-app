@@ -165,6 +165,9 @@ main { flex: 1; min-height: 0; position: relative; display: flex; }
 }
 .btnrow button svg { width: 15px; height: 15px; }
 .btnrow button:hover, .btn:hover { border-color: var(--accent); }
+.btnrow button.primary:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btnrow button:disabled { opacity: .45; cursor: not-allowed; }
+.btnrow button.primary:hover:not(:disabled) { filter: brightness(1.08); }
 .btnrow button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; color: var(--accent); }
 .toggle { display: inline-flex; align-items: center; gap: 9px; font-size: 13px; cursor: pointer; }
 .toggle input { display: none; }
@@ -236,3 +239,11 @@ input:focus { outline: none; border-color: var(--accent); }
   .cfggrid { grid-template-columns: 1fr; }
   #connLabel { display: none; }
 }
+
+/* ---- updates ---- */
+.pill.update { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+.pill.update:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.incoming { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; font-size: 12px; max-height: 96px; overflow: auto; }
+.incoming li { display: flex; gap: 8px; }
+.incoming li span { color: var(--muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+#verStatus.warn { color: var(--warn); }
