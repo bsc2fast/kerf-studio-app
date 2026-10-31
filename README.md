@@ -94,11 +94,30 @@ scans them before every cut.
 
 ---
 
+## First cut: the sample sheet
+
+[`app/samples/kerf-sample-a4.pdf`](app/samples/kerf-sample-a4.pdf) is an A4
+test sheet: coloured stickers, the cutter's **4 corner registration dots**, and
+cut lines in the `Cut` spot colour. [`kerf-sample-a4.plt`](app/samples/kerf-sample-a4.plt)
+is its cut file, exactly what the Studio exports for it.
+
+1. Print the PDF at **100% / Actual size** (no "fit to page").
+2. In the Studio, click **Load sample** (or drop the PDF), then **Cut** — or
+   copy the `.plt` to a USB stick.
+3. Put the sheet on the bed; the camera finds the dots, then the blade cuts.
+
+The layout is symmetric left-right and top-bottom, so it cuts true however the
+sheet is turned onto the bed: a safe first job on a new machine. Rebuild it
+with `python3 scripts/make-sample.py`.
+
+---
+
 ## Layout
 
 * `server.mjs` — the local server: serves `app/` and forwards `.plt` to the
   cutter over TCP (browsers can't open raw sockets)
-* `app/` — the Studio (plain HTML/JS modules)
+* `app/` — the Studio (plain HTML/JS modules); `app/samples/` holds the test sheet
+* `scripts/make-sample.py` — builds the sample PDF (no dependencies)
 * `docs/` — how the machine and its `.plt` format were figured out
 * `captures/` — sample PDF+PLT pairs (git-ignored)
 

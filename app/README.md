@@ -10,4 +10,5 @@ The Studio UI: plain HTML and ES modules, served by `../server.mjs`. See the
 - `lib/hpgl.js` — polylines → HPGL `.plt`
 - `lib/transport.js` — ping / send through the local server
 - `lib/settings.js` — machine settings (IP, bed, origin), kept in the browser
+- `samples/kerf-sample-a4.pdf` + `.plt` — the A4 test sheet (built by `../scripts/make-sample.py`); **Load sample** opens it
 - `samples/test-square.svg` — calibration artwork

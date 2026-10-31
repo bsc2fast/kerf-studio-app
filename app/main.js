@@ -127,10 +127,9 @@ window.addEventListener('drop', (e) => {
 });
 $('loadSample').addEventListener('click', async (e) => {
   e.stopPropagation();
-  const text = await (await fetch('./samples/test-square.svg')).text();
-  state.kind = 'art'; state.pltBed = null; setFile('test-square.svg');
-  buildContours(svgToPolylines(text, readOpts()).polylines, 1);
-  setStatus('Loaded sample.', 'ok');
+  // the A4 test sheet: 4 registration dots + "Cut" spot-colour contours (scripts/make-sample.py)
+  const buf = await (await fetch('./samples/kerf-sample-a4.pdf')).arrayBuffer();
+  loadFile(new File([buf], 'kerf-sample-a4.pdf', { type: 'application/pdf' }));
 });
 
 // ---- contour list -----------------------------------------------------------
