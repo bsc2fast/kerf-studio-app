@@ -3,14 +3,13 @@ import { svgToPolylines, rotateAndNormalize, boundsOf } from './lib/svg-parse.js
 import { extractCutPolylines } from './lib/pdf-cut.js';
 import { polylinesToHPGL, hpglStats } from './lib/hpgl.js';
 import { parsePlt } from './lib/plt-parse.js';
-import { detectBackend, pingMachine, sendPlt } from './lib/transport.js';
+import { pingMachine, sendPlt } from './lib/transport.js';
 import { getSettings, saveSettings, resetSettings } from './lib/settings.js';
 
 const $ = (id) => document.getElementById(id);
 const PALETTE = ['#ff5a5f', '#6aa8ff', '#3ee0d0', '#ffb454', '#b18cff', '#f06aa8', '#7bd88f', '#e7d36a'];
 // kind: 'art' (PDF/SVG → generated .plt) | 'plt' (uploaded .plt, sent as-is)
 const state = { fileName: null, kind: null, contours: [], plt: null, pltBed: null, items: [], hover: -1 };
-let backendMode = 'web';
 
 // ---- theme ------------------------------------------------------------------
 const THEME_KEY = 'kerf.theme';
@@ -415,7 +414,7 @@ $('resetBtn').addEventListener('click', () => { resetSettings(); populateConfig(
 let connPoll = null, connState = 'idle';
 function connLabelText() {
   return connState === 'online' ? ipv() : connState === 'offline' ? `${ipv()} · offline` : connState === 'checking' ? 'Checking…'
-    : (backendMode === 'web' ? 'Desktop app needed' : ipv());
+    : ipv();
 }
 function setConn(st) {
   connState = st;
@@ -424,10 +423,10 @@ function setConn(st) {
 }
 function stopConnPoll() { if (connPoll) { clearInterval(connPoll); connPoll = null; } }
 function startConnPoll() { stopConnPoll(); connPoll = setInterval(async () => { try { await pingMachine(ipv(), portv()); setConn('online'); } catch { setConn('offline'); stopConnPoll(); } }, 15000); }
-$('connWidget').addEventListener('click', () => { if (backendMode === 'web') { location.hash = '#get'; return; } testConn($('lanLog')); });
+$('connWidget').addEventListener('click', () => testConn($('lanLog')));
 
 // ---- routing ----------------------------------------------------------------
-const VIEWS = ['studio', 'config', 'get'];
+const VIEWS = ['studio', 'config'];
 function showView(v) {
   if (!VIEWS.includes(v)) v = 'studio';
   VIEWS.forEach(id => { $('view-' + id).hidden = id !== v; });
@@ -451,15 +450,5 @@ populateConfig();
 setStickNote();
 (async () => { if (fsSupported) { try { const h = await idb('get'); if (h && (await h.queryPermission({ mode: 'readwrite' })) !== 'denied') stickDir = h; } catch {} setStickNote(); } })();
 
-detectBackend().then((mode) => {
-  backendMode = mode;
-  if (mode === 'web') {
-    // no machine link: USB becomes the main action
-    $('sendLanBtn').hidden = true;
-    const usb = $('saveStickBtn'); usb.className = 'send'; usb.lastChild.textContent = ' Save to USB';
-    setConn('idle');
-  } else {
-    testConn(null);   // auto-check once
-  }
-});
+testConn(null);   // auto-check once
 drawPreview();

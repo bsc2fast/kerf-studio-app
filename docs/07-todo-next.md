@@ -1,7 +1,7 @@
 # 07 — TODO / next session
 
 Snapshot of open work as of 2026-09-27. Everything below is "later" — the app is
-fully working today (design → cut over LAN, plus hosted web + downloadable app).
+fully working today (design → cut over LAN via the local server).
 
 ## 1. Speed / Force / Graver over the network (main open item)
 
@@ -36,29 +36,9 @@ Fallback if SignMaster is unavailable: probe-by-cutting (embed candidates in a r
 job, judge by cut result). Untried mnemonics: `F`, `BF`, `PF`, `PR`, `SO`, `!VS`,
 and `VS`/`FS` placed *inside* a `TB` job.
 
-## 2. Refresh the downloadable app
-
-The hosted `.dmg` is the **old single-page build** (pre multi-page / Machine page).
-Rebuild and refresh:
-
-```bash
-cd desktop && PATH=$HOME/.cargo/bin:$PATH npm run build
-cp src-tauri/target/release/bundle/dmg/Kerf_*_aarch64.dmg app/downloads/Kerf-macOS-AppleSilicon.dmg
-cd ../web && npx wrangler deploy
-```
-
-## 3. Intel-Mac + Windows builds (CI)
-
-```bash
-git tag v0.1.0 && git push origin v0.1.0   # → .github/workflows/release.yml (draft release)
-```
-Then drop the artifacts into `app/downloads/` and redeploy, or link them on the
-Get-app page.
-
-## 4. Optional polish
+## 2. Optional polish
 
 - ~~Rename repo/folder~~ — done 2026-10-23: `flatbed-cutter-control` → `kerf-studio-app`.
-- Code-signing (Apple Developer + Windows certs) to remove first-run warnings.
 
 ## Not doing (settled)
 
@@ -66,3 +46,10 @@ Get-app page.
   print-and-cut machine (every network job triggers the uncancellable camera scan;
   `TB` is required to move and is what scans; only TCP 5000, ready-screen only).
   Jogging is panel-only. See `docs/01-machine-profile.md` §D and the project memory.
+
+
+## Dropped (2026-10-31)
+
+The Tauri desktop app, its DMG, the release CI and the hosted Studio at
+kerf.sankhacooray.com/studio/ were removed. Kerf Studio runs only locally
+(`node server.mjs`), like Helix Studio; the site just explains how to set it up.

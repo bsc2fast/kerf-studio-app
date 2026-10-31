@@ -215,8 +215,6 @@ input:focus { outline: none; border-color: var(--accent); }
 .cfgcol .card:last-child .cardbody > .link:last-child { margin-top: auto; }
 .steps.plain { list-style: none; padding: 0; color: var(--muted); }
 .steps.plain b { color: var(--ink); }
-.getcard { width: min(440px, 100%); }
-.getcard p { margin: 0 0 4px; }
 .info { position: relative; margin-left: auto; cursor: help; font-size: 13px; color: #9aa3b5; text-transform: none; letter-spacing: 0; outline: none; }
 .info .pop {
   position: absolute; right: -6px; top: 22px; width: 240px; z-index: 5; padding: 10px 12px; border-radius: 10px;
