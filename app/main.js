@@ -1,4 +1,4 @@
-// main.js — Kerf: Studio + Machine config + Get-app, one shared app.
+// main.js — Kerf Studio: the Studio and Machine settings, one shared app.
 import { svgToPolylines, rotateAndNormalize, boundsOf } from './lib/svg-parse.js';
 import { extractCutPolylines } from './lib/pdf-cut.js';
 import { polylinesToHPGL, hpglStats } from './lib/hpgl.js';

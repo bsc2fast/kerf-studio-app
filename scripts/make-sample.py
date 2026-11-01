@@ -3,7 +3,7 @@
 
 An A4 print-and-cut sheet the way Illustrator would hand it to the cutter:
 CMYK artwork, the 4 camera registration dots, and cut lines stroked in a spot
-colour (Separation) named "Cut" — the only thing Kerf extracts from a PDF.
+colour (Separation) named "Cut" — the only thing Kerf Studio extracts from a PDF.
 
 The cut layout is symmetric left-right and top-bottom, and centred on the
 frame the dots define (their centres are 190 x 277 mm apart = the bed). So it
@@ -83,8 +83,8 @@ def content():
     for fn, cut, bleed, cmyk in STICKERS:                     # print: CMYK fills
         out += [f"{cmyk[0]} {cmyk[1]} {cmyk[2]} {cmyk[3]} k", fn(*bleed), "f"]
     out += ["0 0 0 0.75 k", "BT /F1 8 Tf",                    # caption, clear of the dots
-            f"1 0 0 1 {(CX - 41) * MM:.3f} {(H - 278) * MM:.3f} Tm",
-            "(Kerf sample sheet  -  print at 100% / Actual size, then cut) Tj", "ET"]
+            f"1 0 0 1 {(CX - 44) * MM:.3f} {(H - 278) * MM:.3f} Tm",
+            "(Kerf Studio sample sheet  -  print at 100% / Actual size, then cut) Tj", "ET"]
     out += ["0.15463 0.14662 0.14664 rg"]                     # registration dots
     out += [circle(x, y, MARK_D / 2) + "\nf" for x, y in MARKS]
     out += ["/CS0 CS 1 SCN", f"{0.25 * MM:.3f} w"]            # cut lines: spot colour "Cut"
@@ -102,7 +102,7 @@ def build(path):
         b"<< /Length " + str(len(data)).encode() + b" /Filter /FlateDecode >>\nstream\n" + data + b"\nendstream",
         b"[/Separation /Cut /DeviceCMYK << /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 [0 1 0 0] /N 1 >>]",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-        b"<< /Title (Kerf sample sheet, A4) /Producer (kerf-studio-app scripts/make-sample.py) >>",
+        b"<< /Title (Kerf Studio sample sheet, A4) /Producer (kerf-studio-app scripts/make-sample.py) >>",
     ]
     out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
     offsets = []
